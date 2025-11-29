@@ -1,0 +1,459 @@
+---
+title: "apply"
+output: html_notebook
+editor_options: 
+  markdown: 
+    wrap: 80
+---
+
+# lapply()
+
+## Looping on the command line
+
+Writing for and while loops is useful when programming but not particularly easy
+when working interactively on the command line. There are some functions which
+implement looping to make life easier.
+
+-   lapply(): Loop over a list and evaluate function on each element
+-   sapply(): Same as lapply() but try to simplify the result
+-   apply(): Apply a function over the margins of an array
+-   tapply(): Apply a function over subsets of a vector
+-   mapply(): Multivariate version of lapply
+
+An auxiliary function split() is also useful, particularly in conjunction with
+lapply().
+
+## lapply()
+
+lapply() takes three arguments
+
+1.  A list x (if x is not a list it will be coerced to a list using as.list)
+2.  A function (or name of a function) FUN
+3.  Other arguments via its ... argument
+
+The function:
+
+```         
+lapply
+
+## function(X, FUN, …) {
+##     FUN <- match.fun(FUN)
+##     if (!is.vector(X) || is.object(X))
+##         X <- as.list(X)
+##     .Internal(lapply(X, FUN))
+## }
+## <bytecode: 0x7ff7a195c00>
+## <environment: namespace:base>
+```
+
+The actual looping is done internally in C code.
+
+lapply() always returns a list, regardless of the class of the input.
+
+```{r}
+x <- list(a = 1:5, b = rnorm(10))
+x
+lapply(x, mean)
+
+```
+
+A more complicated example:
+
+```{r}
+
+x <- list(a = 1:4, b = rnorm(10), c = rnorm(20, 1), d = rnorm(100, 5))
+x
+lapply(x, mean)
+```
+
+Another way to call ***lapply()***
+
+```{r}
+x <- 1:4
+lapply(x, runif)
+#Pass every value of x into runif and it becomes runif(x[i]) where i in 1 to 4 and x[i] number of values randomly generated between 0 and 1
+
+```
+
+Pass arguments to your function:
+
+```{r}
+x <- 1:4
+lapply(x, runif, min = 0, max = 10)
+# min=0 and max=0 are the arguments that get passed onto runif every time it is called by using the ... in lapply
+```
+
+lapply() and friends make heavy use of anonymous functions.
+
+```{r}
+x <- list(a = matrix(1:4, 2, 2), b = matrix(1:6, 3, 2))
+x
+```
+
+An anonymous function for extracting the first column of each matrix:
+
+```{r}
+lapply(x, function(elt) elt[,1])
+```
+
+## sapply()
+
+sapply() will try to simplify the result of lapply if possible
+
+-   If the result is a list where every element is length 1, then a vector is
+    returned
+-   IF the result is a list where every element is a vector of the same length
+    (\> 1), a matrix is returned
+-   If it can't figure things out, a list is returned
+
+Here's the lapply() behavior again:
+
+```{r}
+x <- list(a = 1:4, b = rnorm(10), c = rnorm(20, 1), d = rnorm(100, 5))
+lapply(x, mean)
+sapply(x, mean)
+```
+
+## apply()
+
+apply() is used to evaluate a function (often an anonymous one) over the margins
+of an array
+
+-   It is most often used to apply a function to the rows or columns of a matrix
+-   It can be used with general array *e.g.* taking the average of an array of
+    matrices
+-   It is not only faster than writing a loop, but it works in one line!
+
+Example:
+
+```{r}
+str(apply) function (X, MARGIN, …)
+```
+
+Arguments:
+
+-   X is an array
+-   MARGIN is an integer vector indicating which margins should be "retained"
+-   FUN is a function to be applied
+-   ... is for other arguments to be passed to FUN
+
+Example:
+
+```{r}
+ x <- matrix(rnorm(200), 20, 10)
+ apply(x, 2, mean)  
+ apply(x, 1, sum)  
+apply(x,2,function(y)length(y)-1)
+```
+
+### Col/row sums and means
+
+For sums and means of matrix dimensions, we have some shortcuts.
+
+-   rowSums = apply(x, 1, sum)
+-   rowMeans = apply(x, 1, mean)
+-   colSums = apply(x, 2, sum)
+-   colMeans = apply(x, 2, mean)
+
+The shortcut functions are *much* faster, but you won't notice unless you're
+using a large matrix.
+
+### Other ways to apply
+
+Quantiles of the rows of a matrix.
+
+```{r}
+x <- matrix(rnorm(200), 20, 10) 
+apply(x, 1, quantile, probs = c(0.25, 0.75))  
+#probs goes as an argument into quantile where we need to find 25%ile and 75%ile
+# for every row in the 20X10 Matrix, find the 25 and 75 quantile and the result would be 2X20 matrix
+```
+
+Average matrix in an array
+
+```{r}
+a <- array(rnorm(2 * 2 * 10), c(2, 2, 10)) 
+apply(a, c(1, 2), mean)             
+rowMeans(a, dims = 2)            
+```
+
+## tapply()
+
+tapply() is used to apply a function over subsets of a vector. I don't know why
+it's called tapply().
+By default simplify is true in tapply(), means it behaves like sapply() 
+
+```{r}
+str(tapply) function (X, INDEX, FUN = NULL, ..., simplify = TRUE)
+```
+
+Arguments:
+
+-   X is a vector
+-   INDEX is a factor or list of factors (or else they are coerced to factors)
+-   FUN is a function to be applied
+-   ... contains other arguments to be passed to FUN
+-   simplify, should we simplify the result?
+
+Take group means.
+
+```{r}
+x <- c(rnorm(10), runif(10), rnorm(10, 1))
+f <- gl(3, 10) 
+f
+tapply(x, f, mean)
+```
+
+Take group means without simplification.
+
+```{r}
+tapply(x, f, mean, simplify = FALSE) 
+```
+
+Find group ranges.
+
+```{r}
+tapply(x, f, range) 
+#Means for the factors f that has 3 levels, for every level find the range that is min and max
+```
+
+# split()
+
+split takes a vector or other objects and splits it into groups determined by a
+factor or a list of factors.
+
+```{r}
+str(split) function (x, f, drop = FALSE, …)
+```
+
+Arguments:
+
+-   x is a vector (or list) or data frame
+-   f is a factor (or coerced to one) or a list of factors
+-   drop indicates whether empty factor levels should be dropped
+
+Example:
+
+```{r}
+x <- c(rnorm(10), runif(10), rnorm(10, 1))
+f <- gl(3, 10) 
+split(x, f) 
+```
+
+A common idiom is split() followed by an lapply()
+
+```{r}
+x <- c(rnorm(10), runif(10), rnorm(10, 1))
+f <- gl(3, 10)
+lapply(split(x, f), mean)
+#same working as tapply(x,f,mean)
+tapply(x,f,mean)
+```
+
+## Splitting a Data Frame
+
+```{r}
+library(datasets) 
+head(airquality)
+class(airquality$Month)
+#It will be coerced to factor during split
+s <- split(airquality, airquality$Month,drop=TRUE)
+lapply(s, function(x) colMeans(x[, c("Ozone", "Solar.R", "Wind")])) 
+```
+
+You can also use sapply() here.
+
+```{r}
+sapply(s, function(x) colMeans(x[, c("Ozone", "Solar.R", "Wind")]))        
+#Result is named Matrix
+```
+
+Remove NAs
+
+```{r}
+sapply(s, function(x) colMeans(x[, c("Ozone", "Solar.R", "Wind")], na.rm  = TRUE))                 
+```
+
+## Splitting on More than One Level
+
+```{r}
+x <- rnorm(10) 
+x
+f1 <- gl(2, 5) 
+f2 <- gl(5, 2)
+f1  
+f2  
+split(x, list(f1, f2))
+```
+
+Interactions can create empty levels.
+
+```{r}
+str(split(x, list(f1, f2))) 
+```
+
+Use drop = TRUE to get rid of empty levels.
+
+```{r}
+str(split(x, list(f1, f2), drop = TRUE)) 
+```
+
+# mapply()
+
+mapply() is a multivariate apply which applies a function in parallel over a set
+of arguments.
+
+```{r}         
+str(mapply) function (FUN, ..., MoreArgs = NULL, SIMPLIFY = TRUE,           USE.NAMES = TRUE)
+```
+
+Arguments:
+
+-   FUN is a function to apply
+-   ... contains arguments to apply over
+-   MoreArgs is a list of other arguments to FUN
+-   SIMPLIFY indicates whether the result should be simplified
+
+The following is tedious to type:
+
+```{r}         
+list(rep(1, 4), rep(2, 3), rep(3, 2), rep(4, 1))
+```
+
+Instead we can do:
+
+``` {r}
+
+ mapply(rep, 1:4, 4:1) 
+```
+
+## Vectorizing a function
+
+Define a custom function:
+
+``` {r}
+
+noise <- function(n, mean, sd) {
+  rnorm(n, mean, sd) 
+  } 
+noise(5, 1, 2) 
+noise(1:5, 1:5, 2) 
+```
+
+Passing lists to this function does not behave as expected.
+
+``` {r}        
+mapply(noise, 1:5, 1:5, 2) 
+```
+
+Which is the same as:
+
+```{r}         
+list(noise(1, 1, 2), noise(2, 2, 2),        noise(3, 3, 2), noise(4, 4, 2),        noise(5, 5, 2))
+```
+
+# Debugging - Part 1
+
+Indications that something is not right.
+
+-   message
+    -   A generic notification/diagnostic message produced by the message
+        function
+    -   Execution of the function continues
+-   warning
+    -   An indication that something is wrong but not necessarily fatal
+    -   Execution of the function continues
+    -   Generation by the warning function
+-   error
+    -   An indication that a fatal problem has occurred
+    -   Execution stops
+    -   Produced by the stop function
+-   condition
+    -   A generic concept for indicating that something unexpected can occur
+    -   Programmers can create their own conditions
+
+Warnings:
+
+```         
+log(-1) [1] NaN Warning message: In log(-1) : NaNs produced
+```
+
+Example:
+
+```         
+ printmessage <- function(x) { +   if(x > 0) +       print("x is greater than zero") +   else +       print("x is less than or equal to zero") +   invisible(x) + }  > printmessage(1) [1] "x is greater than zero"  > printmessage(NA) Error in if (x > 0) print("x is greater than zero") else print("x is less than or equal to zero") : missing value where TRUE/FALSE needed
+```
+
+Another example:
+
+```         
+> printmessage2 <- function(x) { +   if(is.na(x)) +       print("x is a missing value!") +   else if(x > 0) +       print("x is greater than zero") +   else +       print("x is less than or equal to zero") +   invisible(x) + } > x <- log(-1) Warning message: In log(-1) : NaNs produced > printmessage2(x) [1] "x is a missing value!"
+```
+
+How do you know that something is wrong with your function?
+
+-   What was you input? How did you call the function?
+-   What were you expecting? Output, message, other results?
+-   What did you get?
+-   How does what you get differ from what you were expecting?
+-   Were your expectations correct in the first place?
+-   Can you reproduce the problem (exactly)?
+
+# Debugging - Part 2
+
+The primary tools for debugging functions in R are:
+
+-   traceback
+    -   Prints out the function call stack after an error occurs
+    -   Does nothing if there's no error
+-   debug: Flags a function for debug mode which allows you to step through
+    execution of a function in debug mode
+-   browser
+    -   Suspends the execution of a function wherever it is called and puts the
+        function in debug mode
+-   trace: allows you to insert debugging code into a function in specific
+    places
+-   recover: allows you to modify the error behavior so that you can browse the
+    function call stack
+
+These are interactive tools specifically designed to allow you to pick through a
+function. There's also the more blunt technique of inserting print/cat
+statements in the function.
+
+# Debugging - Part 3
+
+## traceback()
+
+```         
+> mean(x) Error in mean(x) : object 'x' not found > traceback() 1: mean(x) >
+```
+
+Example:
+
+```         
+> lm(y - x) Error in eval(expr, envir, enclos) : object 'y' not found > traceback() 7: eval(expr, envir, enclos) 6: eval(prevars, data, env) 5: model.frame.default(formula = y - x, drop.unused.levels = TRUE) 4: model.frame(formula = y - x, drop.unused.levels = TRUE) 3: eval(expr, envir, enclos) 2: eval(mf, parent.frame()) 1: lm(y - x)
+```
+
+## debug()
+
+```         
+> debug(lm) > lm(y - x) debugging in: lm(y - x) debug: {     ret.x <- x     ret.y <- y     cl <- match.call() …     if (!qr)          z$qr <- NULL     z } Browse[2]> n debug: ret.x <- x Browse[2]> n debug: ret.y <- y Browse[2]> n debug: cl <- match.call() Browse[2]> n debug: mf <- match.call(expand.dots = FALSE) Browse[2]> n debug: m <- match(c("formula", "data", "subset", "weights", "na.action",      "offset"), names(mf), 0L)
+```
+
+## recover()
+
+```         
+> options(error = recover) > read.csv('nosuchfile') Error in file(file, "rt") : cannot open the connection In addition: Warning message: In file(file, "rt") :   cannot open file 'nosuchfile': No such file or directory  Enter a frame number, or 0 to exit     1: read.csv("nosuchfile") 2: read.table(file = file, header = header, sep = sep, quote = quote, dec = dec, fil 3: file(file, "rt")  Selection: 
+```
+
+## Summary
+
+-   There are three main indications of a problem/condition: message, warning,
+    error
+    -   Only an error is fatal
+-   When analyzing a function with a problem, make sure you can reproduce the
+    problem. clearly state your expectations and how the output differs from
+    your expectation
+-   Interactive debugging tools traceback, debug, browser, trace, and recover
+    can be used to find problematic code in functions
+-   Debugging tools are not a substitute for thinking!
